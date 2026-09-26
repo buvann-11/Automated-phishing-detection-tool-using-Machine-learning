@@ -56,6 +56,9 @@
         .safe {
             color: green;
         }
+        .uncertain {
+            color: #b36b00;
+        }
     </style>
 </head>
 <body>
@@ -68,7 +71,7 @@
         </form>
 
         {% if result %}
-            <div class="result {% if '⚠️' in result %}phishing{% else %}safe{% endif %}">
+            <div class="result {% if '⚠️' in result %}phishing{% elif '❓' in result %}uncertain{% else %}safe{% endif %}">
                 {{ result }}
             </div>
         {% endif %}
