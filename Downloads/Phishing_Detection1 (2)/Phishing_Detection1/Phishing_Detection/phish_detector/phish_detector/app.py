@@ -9,7 +9,8 @@ from utils.email_sender import send_alert_email
 app = Flask(__name__)
 
 # Load phishing database (simple text file with known phishing URLs) if present
-DATABASE_FILE = os.path.join("data", "phishing_db.txt")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_FILE = os.path.join(BASE_DIR, "data", "phishing_db.txt")
 phishing_db = set()
 if os.path.exists(DATABASE_FILE):
     with open(DATABASE_FILE, "r", encoding="utf-8", errors="ignore") as f:
@@ -33,13 +34,18 @@ def index():
             try:
                 prediction = ensemble_predict(url)
                 # prediction is a dict: use fields
-                is_phish = prediction.get("final", 0) == 1
+                final = prediction.get("final", 0)
+                is_phish = final == 1
                 conf = prediction.get("confidence", 0.0)
                 votes = prediction.get("votes", 0)
                 risk = prediction.get("risk", {})
                 rscore = risk.get("score", 0.0)
                 rreasons = ", ".join(risk.get("reasons", [])[:3])
-                if is_phish:
+                details = f"conf {conf:.2f}, votes {votes}/3, risk {rscore:.2f}{' - ' + rreasons if rreasons else ''}"
+                if final == -1:
+                    # The models could not classify this URL confidently; don't claim it is safe.
+                    result = f"❓ Could not classify this URL confidently ({details}). Treat it with caution."
+                elif is_phish:
                     result = f"⚠️ Classified as phishing (conf {conf:.2f}, votes {votes}/3, risk {rscore:.2f}{' - ' + rreasons if rreasons else ''})."
                     send_alert_email(user_email, url, is_phishing=True)
                 else:
@@ -55,4 +61,5 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Debug mode is opt-in: set FLASK_DEBUG=1 while developing.
+    app.run(debug=os.getenv("FLASK_DEBUG") == "1")
